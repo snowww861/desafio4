@@ -1,6 +1,8 @@
 import numpy as np
 # Assentos marcados pelo site antes da abertura do check-in
-reservados = ["1A","1B","2F","4C","4D","6A","7E","9F","10A","10B"]
+reservados = np.array(["1A","1B","2F","4C","4D","6A","7E","9F","10A","10B"])
+localizadores = np.array([])
+#o ideal de resservados seria um dicionario carregando informaçoes de cada um dos asssentos
 codigoLocalizador = {
     "NUM":{
         "10":"ECO8",
@@ -31,70 +33,137 @@ letras = {"A":0,
           "F":5,
           }
 
-def definirAssentos():
+fileiras = 10
+
+def definirAssentos(localizadores):
     controle = {}
-    for i in range(10):
+    for i in range(fileiras):
         for j in letras:
             controle[f"{i+1}{j}"] = False
-    if reservados:
+    if reservados.size > 0:
         for i in reservados:
+            localizadores = np.append(localizadores, gerar_localizador(i))
             controle[i] = True
-    return controle
+    return controle, localizadores
 
+def atualizarAssentos(assentos, new):
+    assentos[new] = True
+    return assentos
 
-def validar_localizador(userInput, genInput):
-    if userInput != genInput:
-        response = input("Digite novamente o localizador: ").upper()
-        if response == genInput:
-            return response
-
+def validar_localizador(userInput):
+    classe = ["ECO","VIP"]
+    for i in classe:
+        lenght = 8
+        if i == classe[1]:
+            lenght = 2
+        if i in userInput:
+            if 1 <= int(userInput[-1]) <= 3:
+                if userInput[-2] == "D" or userInput[-2] == "E":
+                    if 1 <= int(userInput[3]) <= lenght:
+                        return True
+                    else:
+                        return False
+                else:
+                    return False
+            else:
+                return False
 
 def gerarVisual(assentos):
-    length = 1
-    controle = []
-    print("       A  B  C    D  E  F")
+    controle = np.full((fileiras, 6), "", dtype=str)
+    mapaNumpy = np.full((fileiras,6), 0)
+    print("        A    B    C       D    E    F")
     for i,j in enumerate(assentos):
-        if len(j) == 3:
-            length = 2
-        if not controle:
-            controle.append([])
-        elif len(controle) <= int(j[:length])-1:
-            controle.append([])
-        controle[int(j[:length])-1].append(j)
-        print(controle)
-        if i%6 != 0:
-            #falta fazer o negocio desenrolar mas as saidas ate entao estao oks
-            print(f"{j[:length]}      ")
+        if assentos[j] == True:
+            controle[i//6][i%6] = "X"
+            mapaNumpy[i//6][i%6] = 1
+        else:
+            controle[i//6][i%6] = "."
+    for i in range(fileiras):
+        if i >= 9:
+            print(f"{i+1}      {controle[i][0]}    {controle[i][1]}    {controle[i][2]}       {controle[i][3]}    {controle[i][4]}    {controle[i][5]}")
+        else:
+            print(f"{i+1}       {controle[i][0]}    {controle[i][1]}    {controle[i][2]}       {controle[i][3]}    {controle[i][4]}    {controle[i][5]}")
+    return mapaNumpy
+
+def gerar_localizador(assento):
+    length = 1
+    if len(assento) == 3:
+        length = 2
+    if assento[-1] in letras and int(assento[:length]) <= fileiras:
+        return f"{codigoLocalizador['NUM'][assento[:length]]}{codigoLocalizador['LET'][assento[-1]]}"
+    
 def converter_assento(codigo):
     length = 1
     if len(codigo) == 3:
         length = 2
-    if codigo[-1] in letras and int(codigo[:length]) <= 10:
-        return [letras[codigo[-1]],int(codigo[:length])-1] , f"{codigoLocalizador['NUM'][codigo[:length]]}{codigoLocalizador['LET'][codigo[-1]]}"
+    if codigo[-1] in letras and int(codigo[:length]) <= fileiras:
+        return [int(codigo[:length])-1,letras[codigo[-1]]]
     else:
         print("Assento inválido")
-        return [-1,-1], None
+        return [-1,-1]
 
-assentos = definirAssentos()
-gerarVisual(assentos)
-codigoAssento = input("Qual o código do assento?").upper()
-#localizador = validar_localizador(codigoAssento)
-assentoConvertido, a = converter_assento(codigoAssento)
+def calcular_taxa_assento(linha, coluna):
+    if coluna == 0 or coluna == 5:
+        return 35
+    elif coluna == 1 or coluna == 4:
+        return 25
+
+def calcular_taxa_bagagem(peso:float, premium:bool): 
+    if premium:
+        pesoIncluso =  32
+    else:
+        pesoIncluso = 23
+    if peso > 45:
+        print("mala pesada demais")
+        peso = float(input("Realoque as malas e digite o novo peso: "))
+        if peso > 45:
+            print("error")
+
+    if peso-pesoIncluso < 0:
+        return 0
+    else:
+        return (peso-pesoIncluso)*15
+
+def definir_grupo(linha, coluna):
+    if linha == 1 or linha == 0:
+        return 1
+    else:
+        if coluna == 0 or coluna == 5:
+            return 2
+        elif coluna == 1 or coluna == 4:
+            return 3
+        else:
+            return 4
+
+def formatar_nome_cartao(nome:str):
+    nome = nome.split(" ")
+    return f"{nome[-1]}/{nome[0]}"
+
+def validar_assento(userLocalizador, userAssento):
+    pass
+
+def verifyLocalizadores(localizador):
+    pass
+
+
+
+assentos, localizadores = definirAssentos(localizadores)
+mapaNumpy = gerarVisual(assentos)
+localizador = input("digite seu localizador: ").upper().replace(" ", "")
+codigoAssento = input("Qual o código do assento?").upper().replace(" ", "")
+assentoConvertido = converter_assento(codigoAssento)
+if assentoConvertido == [-1,-1]:
+    assentoConvertido = converter_assento(input("Codigo de assento inválido tente novamente: ").upper().replace(" ", ""))
+else:
+    localizadorGerado = gerar_localizador(codigoAssento)
 print(assentoConvertido)
-print(a)
-print(assentos)
-
+localizador = validar_localizador(localizador)
 loops = int(input("Quantos passageiros terão no voo?"))
 
 for i in range(loops):
     nome = input("Nome completo: ").upper()
-    localizador = input("Localizador da reserva: ").upper()
-    assento = input("Assento desejado: ").upper()
-    kg_bag = input("Peso da bagagem em Kg: ").upper()
-    if kg_bag.isdigit():
-        if float(kg_bag) <= 45:
-            pass
-        else:
-            kg_bag = float(input("remaneje suas bagagens e digite o novo peso em Kgs: "))
-    else:
-        kg_bag = float(input("Digite novamente o peso da bagagem em kg: "))
+    nomeSplit = formatar_nome_cartao(nome)
+    localizador = input("Localizador da reserva: ").upper().replace(" ", "")
+    assento = input("Assento desejado: ").upper().replace(" ", "")
+
+    kg_bag = input("Peso da bagagem em Kg: ").upper().replace(" ", "")
